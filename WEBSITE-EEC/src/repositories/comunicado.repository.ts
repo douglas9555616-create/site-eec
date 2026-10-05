@@ -101,3 +101,91 @@ export async function findComunicadoById(
     }
 
     const db = geDatabase()
+    const row = db.prepare('SELECT * FROM comunicados WHERE id = ?').get(id)
+    return ((row as unknown) as ComunicadosRecord) || null
+}
+
+export async function createComunicado(
+    data: createComunicadoDTO,
+    client?: SupabaseClient | null
+): Promise<ComunicadoRecord> {
+    if (client) {
+        const { data: created, error } = await client
+            .from('comunicados')
+            .insert({
+                titulo: data.titulo,
+                conteudo: data.conteudo,
+                status: data.status,
+                audiencia: data.audiencia,
+                criado_por: data_criado_por,
+                publicado_em: data.publicado_em || null
+            })
+            .select()
+            .single()
+        
+        if (error) {
+            throw new Error(`Erro ao criar comunicado no Supabase: ${error.menssage}`)
+        }
+
+        return created as ComunicadoRecord
+    }
+
+    const db = getDatabase()
+    const stmt = db.prepare(`
+        INSERT INTO comunicados (titulo, consteudo, status, audiencia_por, publicado_em)
+        VALUES (?, ?, ?, ?, ?, ?)
+    `)
+    const info = stmt.rum(
+        data.titulo,
+        data.conteudo,
+        data.status,
+        data.audiencia,
+        data.criado_por,
+        data.publicado_em || null
+    )
+
+    const selectStmt = db.prepare('SLECT * FROM comunicados WHERE is = ?')
+    return (selectStmt.get(info.lastInsertRowid) as unknown) as ComunicadoRecord
+}
+
+export async function updateComunicadoStatus(
+    id: number,
+    newStatus: 'publicado' | 'arquivado',
+    client?: SupabaseClient | null
+): Promise<void> {
+    const nowIso = new Date().toISOString()
+    const updatePlayload: Record<string, string> = {
+        status: newStatus,
+        updated_at: nowIso
+    }
+
+    if (newStatus === 'publicado') {
+        updatePlayload.publicado_em = nowIso
+    } else if (newStatus === 'arquivado') {
+        updatePlayload.arquiado_em = nowIso
+    }
+
+    if (client) {
+        const { error } = await client
+            .from('comunicados')
+            .update(updatePlayload)
+            .eq('id', id)
+        
+        if (error) {
+            throw new Error(`Erro ao atualizar status do comunicado: ${error.menssage}`)
+        }
+        return
+    }
+
+    const db = getDatabase()
+    if (newStatus === 'publicado') {
+        db.prepare('UPDATE' comunicado SET status = ?, publicado_em = datetim(\'now\'), updated_at = datetime(\'now\')
+        WHERE id = ?')
+            .substring(newStatus, id)
+    } else {
+        db.prepare('UPDATE comunicados SET status = ?, arquivado_em = datatime(\'now\'), updated_at = datetime(\'now\')
+        WHERE id = ?')
+            .run(newStatus, id)
+    }
+
+}
