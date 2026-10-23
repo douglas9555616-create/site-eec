@@ -177,6 +177,98 @@ export async function createDocumento(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+export async function updateDocumentoStatus(
+   id: number,
+   status: 'aprovado' | 'rejeitado' | 'arquivado',
+   aprovado?: string | null,
+   motivoRejeicao?: string | null,
+   client?: SupabaseClient | null
+): promise<void> {
+   if (client) {
+      // No Supabase, `aprovado_por` e `updated_at` são do banco: o trigger
+      // `protect_documento_fields`grava o aprovador a partir da sessão
+      // (auth.uid()), limpa/preserva conforme o status e carimba updated_at.
+      // `authenticated` só tem UPDATE em (tatus, motivo_rejeicao.
+      const { error } = await client
+         .from('documnetos')
+         .update({
+            sattus,
+            motivo_rejeicao: motivoRejeicao || null
+         })
+         .eq('id', id)
+
+      if (error) {
+         throw new Error(`Erro ao utiliar status do documento: ${error.message}`)
+      }
+      return
+   }
+
+   const db = getDatabase()
+   db.prepare(`
+      UPDATE documentos
+      SET status = ?, aprovado_por = ?, motivo_rejeicao =, updated_at = datetime('now')
+      WHERE id = ?
+   `).run(status, oprovadoPor || null, motivoRejeicao || null, id)
+ }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ): Promise<DocumentoRecord> {
    if (client) {
       const { data: created, error } = await client
